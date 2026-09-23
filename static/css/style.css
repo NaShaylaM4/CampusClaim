@@ -48,6 +48,61 @@ body {
     color: #1d4ed8;
 }
 
+.flash-messages {
+    width: min(1100px, calc(100% - 2rem));
+    margin: 1.5rem auto 0;
+}
+
+.flash {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+}
+
+.flash-success {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.flash-error {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+.form-page {
+    width: min(480px, calc(100% - 2rem));
+    margin: 4rem auto;
+}
+
+.form-page h1 {
+    font-size: 2rem;
+}
+
+.form {
+    display: grid;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.form label {
+    display: grid;
+    gap: 0.4rem;
+    color: #374151;
+    font-weight: 600;
+}
+
+.form input {
+    padding: 0.7rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font: inherit;
+}
+
+.dashboard-page {
+    width: min(1100px, calc(100% - 2rem));
+    margin: 4rem auto;
+}
+
 .hero {
     width: min(1100px, calc(100% - 2rem));
     margin: 0 auto;
