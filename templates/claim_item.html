@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Claim {{ item.title }} | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="form-page">
+    <p class="eyebrow">Ownership claim</p>
+    <h1>{{ item.title }}</h1>
+    <p class="report-meta">{{ item.category }} | {{ item.location }} | {{ item.date_lost_found }} | {{ item.status }}</p>
+    <p>{{ item.description }}</p>
+    <div class="verification-question">
+        <strong>Verification Question</strong>
+        <p>{{ item.verification_question }}</p>
+    </div>
+    <form class="form" method="post">
+        <label>
+            Verification Answer
+            <textarea name="verification_answer" required></textarea>
+        </label>
+        <label>
+            Additional Message
+            <textarea name="additional_message"></textarea>
+        </label>
+        <button class="button button-primary" type="submit">Submit Claim</button>
+    </form>
+</section>
+{% endblock %}

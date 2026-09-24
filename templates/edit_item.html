@@ -8,10 +8,7 @@
     <form class="form" method="post">
         <label>
             Report Type
-            <select name="report_type" required>
-                <option value="LOST" {% if item.report_type == 'LOST' %}selected{% endif %}>LOST</option>
-                <option value="FOUND" {% if item.report_type == 'FOUND' %}selected{% endif %}>FOUND</option>
-            </select>
+            <span>{{ item.report_type }}</span>
         </label>
         <label>
             Item Name / Title
@@ -44,11 +41,7 @@
         </label>
         <label>
             Status
-            <select name="status" required>
-                {% for status in ['OPEN', 'CLOSED'] %}
-                    <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>
-                {% endfor %}
-            </select>
+            <span>{{ item.status }}</span>
         </label>
         <button class="button button-primary" type="submit">Save Changes</button>
     </form>

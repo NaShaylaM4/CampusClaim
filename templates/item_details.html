@@ -19,6 +19,9 @@
         <dt>Status</dt>
         <dd>{{ item.status }}</dd>
     </dl>
+    {% if can_claim %}
+        <a class="button button-primary" href="{{ url_for('claim_item', item_id=item.item_id) }}">Claim This Item</a>
+    {% endif %}
     <a class="button button-secondary" href="{{ url_for('browse_items') }}">Back to Browse Items</a>
 </section>
 {% endblock %}

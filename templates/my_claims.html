@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}My Claims | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="reports-page">
+    <h1>My Claims</h1>
+    {% if claims %}
+        <div class="report-list">
+            {% for claim in claims %}
+                <article class="report-row">
+                    <div>
+                        <h2>{{ claim.title }}</h2>
+                        <p class="report-meta">{{ claim.category }} | {{ claim.location }} | {{ claim.claim_status }} | {{ claim.created_at }}</p>
+                    </div>
+                    <a class="button button-secondary" href="{{ url_for('item_details', item_id=claim.item_id) }}">View Item</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">You have not submitted any claims yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -16,6 +16,8 @@
                 {% if session.get('logged_in') %}
                     <a href="{{ url_for('create_item') }}">Report Item</a>
                     <a href="{{ url_for('my_reports') }}">My Reports</a>
+                    <a href="{{ url_for('my_claims') }}">My Claims</a>
+                    <a href="{{ url_for('claims_received') }}">Claims Received</a>
                     <a href="{{ url_for('dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('logout') }}">Logout</a>
                 {% else %}

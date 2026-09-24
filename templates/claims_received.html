@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Claims Received | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="reports-page">
+    <h1>Claims Received</h1>
+    {% if claims %}
+        <div class="report-list">
+            {% for claim in claims %}
+                <article class="claim-row">
+                    <h2>{{ claim.title }}</h2>
+                    <p><strong>Claimant:</strong> {{ claim.first_name }} {{ claim.last_name }}</p>
+                    <p><strong>Verification Question:</strong> {{ claim.verification_question }}</p>
+                    <p><strong>Verification Answer:</strong> {{ claim.verification_answer }}</p>
+                    <p><strong>Additional Message:</strong> {{ claim.additional_message or 'None' }}</p>
+                    <p class="report-meta"><strong>Status:</strong> {{ claim.claim_status }} | <strong>Submitted:</strong> {{ claim.created_at }}</p>
+                    {% if claim.claim_status == 'PENDING' %}
+                        <div class="item-actions">
+                            <form method="post" action="{{ url_for('approve_claim', claim_id=claim.claim_id) }}">
+                                <button class="button button-primary" type="submit">Approve</button>
+                            </form>
+                            <form method="post" action="{{ url_for('reject_claim', claim_id=claim.claim_id) }}">
+                                <button class="button button-danger" type="submit">Reject</button>
+                            </form>
+                        </div>
+                    {% endif %}
+                    {% if claim.claim_status == 'APPROVED' and claim.item_status != 'RETURNED' %}
+                        <form method="post" action="{{ url_for('mark_item_returned', item_id=claim.item_id) }}">
+                            <button class="button button-primary" type="submit">Mark Item Returned</button>
+                        </form>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">No claims have been received yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

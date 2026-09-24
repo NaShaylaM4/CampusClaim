@@ -176,6 +176,32 @@ body {
     color: #4b5563;
 }
 
+.verification-question,
+.claim-row {
+    padding: 1rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.verification-question {
+    margin-top: 1.5rem;
+}
+
+.verification-question p {
+    margin-bottom: 0;
+}
+
+.claim-row {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.claim-row h2,
+.claim-row p {
+    margin: 0;
+}
+
 .browse-page {
     width: min(1100px, calc(100% - 2rem));
     margin: 4rem auto;
