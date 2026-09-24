@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}My Reports | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="reports-page">
+    <h1>My Reports</h1>
+    {% if items %}
+        <div class="report-list">
+            {% for item in items %}
+                <article class="report-row">
+                    <div>
+                        <h2>{{ item.title }}</h2>
+                        <p class="report-meta">
+                            {{ item.report_type }} | {{ item.category }} | {{ item.status }} | {{ item.date_lost_found }}
+                        </p>
+                    </div>
+                    <div class="item-actions">
+                        <a class="button button-secondary" href="{{ url_for('item_details', item_id=item.item_id) }}">View</a>
+                        <a class="button button-secondary" href="{{ url_for('edit_item', item_id=item.item_id) }}">Edit</a>
+                        <form method="post" action="{{ url_for('delete_item', item_id=item.item_id) }}" onsubmit="return confirm('Delete this item report?');">
+                            <button class="button button-danger" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-state">You have not created any item reports yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

@@ -14,7 +14,8 @@
                 <a href="{{ url_for('index') }}">Home</a>
                 <a href="#">Browse Items</a>
                 {% if session.get('logged_in') %}
-                    <a href="#">Report Item</a>
+                    <a href="{{ url_for('create_item') }}">Report Item</a>
+                    <a href="{{ url_for('my_reports') }}">My Reports</a>
                     <a href="{{ url_for('dashboard') }}">Dashboard</a>
                     <a href="{{ url_for('logout') }}">Logout</a>
                 {% else %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Item | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="form-page">
+    <h1>Edit Item Report</h1>
+    <form class="form" method="post">
+        <label>
+            Report Type
+            <select name="report_type" required>
+                <option value="LOST" {% if item.report_type == 'LOST' %}selected{% endif %}>LOST</option>
+                <option value="FOUND" {% if item.report_type == 'FOUND' %}selected{% endif %}>FOUND</option>
+            </select>
+        </label>
+        <label>
+            Item Name / Title
+            <input type="text" name="title" required value="{{ item.title }}">
+        </label>
+        <label>
+            Category
+            <select name="category" required>
+                <option value="">Select a category</option>
+                {% for category in categories %}
+                    <option value="{{ category }}" {% if item.category == category %}selected{% endif %}>{{ category }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Description
+            <textarea name="description" required>{{ item.description }}</textarea>
+        </label>
+        <label>
+            Location
+            <input type="text" name="location" required value="{{ item.location }}">
+        </label>
+        <label>
+            Date Lost or Found
+            <input type="date" name="date_lost_found" required value="{{ item.date_lost_found }}">
+        </label>
+        <label>
+            Verification Question
+            <textarea name="verification_question">{{ item.verification_question or '' }}</textarea>
+        </label>
+        <label>
+            Status
+            <select name="status" required>
+                {% for status in ['OPEN', 'CLOSED'] %}
+                    <option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="button button-primary" type="submit">Save Changes</button>
+    </form>
+</section>
+{% endblock %}

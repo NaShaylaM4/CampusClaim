@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ item.title }} | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="details-page">
+    <h1>{{ item.title }}</h1>
+    <dl class="detail-list">
+        <dt>Report Type</dt>
+        <dd>{{ item.report_type }}</dd>
+        <dt>Category</dt>
+        <dd>{{ item.category }}</dd>
+        <dt>Description</dt>
+        <dd>{{ item.description }}</dd>
+        <dt>Location</dt>
+        <dd>{{ item.location }}</dd>
+        <dt>Date Lost or Found</dt>
+        <dd>{{ item.date_lost_found }}</dd>
+        <dt>Status</dt>
+        <dd>{{ item.status }}</dd>
+    </dl>
+    <a class="button button-secondary" href="{{ url_for('my_reports') }}">Back to My Reports</a>
+</section>
+{% endblock %}
