@@ -206,8 +206,61 @@ def create_item():
     return render_template('report_item.html', item=item, categories=CATEGORIES)
 
 
+@app.route('/items')
+def browse_items():
+    query = request.args.get('q', '').strip()
+    report_type = request.args.get('report_type', '').strip().upper()
+    category = request.args.get('category', '').strip()
+    status = request.args.get('status', '').strip().upper()
+
+    filters = []
+    parameters = []
+    if query:
+        filters.append(
+            '(title LIKE ? COLLATE NOCASE OR description LIKE ? COLLATE NOCASE '
+            'OR location LIKE ? COLLATE NOCASE)'
+        )
+        keyword = f'%{query}%'
+        parameters.extend([keyword, keyword, keyword])
+    if report_type in REPORT_TYPES:
+        filters.append('report_type = ?')
+        parameters.append(report_type)
+    if category in CATEGORIES:
+        filters.append('category = ?')
+        parameters.append(category)
+    if status in ITEM_STATUSES:
+        filters.append('status = ?')
+        parameters.append(status)
+
+    sql = """
+        SELECT item_id, title, report_type, category, location,
+               date_lost_found, status
+        FROM items
+    """
+    if filters:
+        sql += ' WHERE ' + ' AND '.join(filters)
+    sql += ' ORDER BY created_at DESC'
+
+    connection = get_db_connection()
+    try:
+        items = connection.execute(sql, parameters).fetchall()
+    finally:
+        connection.close()
+
+    return render_template(
+        'browse_items.html',
+        items=items,
+        query=query,
+        selected_report_type=report_type,
+        selected_category=category,
+        selected_status=status,
+        categories=CATEGORIES,
+        report_types=REPORT_TYPES,
+        item_statuses=ITEM_STATUSES,
+    )
+
+
 @app.route('/items/<int:item_id>')
-@login_required
 def item_details(item_id):
     connection = get_db_connection()
     try:
@@ -225,7 +278,7 @@ def item_details(item_id):
 
     if item is None:
         flash('Item report not found.', 'error')
-        return redirect(url_for('my_reports'))
+        return redirect(url_for('browse_items'))
     return render_template('item_details.html', item=item)
 
 

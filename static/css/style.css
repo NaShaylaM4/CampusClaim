@@ -176,6 +176,84 @@ body {
     color: #4b5563;
 }
 
+.browse-page {
+    width: min(1100px, calc(100% - 2rem));
+    margin: 4rem auto;
+}
+
+.browse-heading {
+    margin-bottom: 2rem;
+}
+
+.browse-heading h1 {
+    font-size: 2.5rem;
+}
+
+.browse-filters {
+    display: grid;
+    grid-template-columns: 2fr repeat(3, 1fr) auto;
+    gap: 0.75rem;
+    align-items: end;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.browse-filters label {
+    display: grid;
+    gap: 0.4rem;
+    color: #374151;
+    font-weight: 600;
+}
+
+.browse-filters input,
+.browse-filters select {
+    min-width: 0;
+    padding: 0.7rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font: inherit;
+}
+
+.item-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.item-card {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+}
+
+.item-card-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.item-card h2 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.report-type {
+    color: #1d4ed8;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.item-card .button {
+    justify-self: start;
+}
+
 .dashboard-page {
     width: min(1100px, calc(100% - 2rem));
     margin: 4rem auto;
@@ -268,6 +346,11 @@ h1 {
     }
 
     .report-row {
+        grid-template-columns: 1fr;
+    }
+
+    .browse-filters,
+    .item-grid {
         grid-template-columns: 1fr;
     }
 }
