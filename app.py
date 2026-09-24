@@ -157,12 +157,79 @@ def logout():
 
 
 @app.route('/dashboard')
+@login_required
 def dashboard():
-    if not session.get('logged_in'):
-        flash('Please log in to access your dashboard.', 'error')
-        return redirect(url_for('login'))
+    user_id = session['user_id']
+    connection = get_db_connection()
+    try:
+        report_stats = connection.execute(
+            """
+            SELECT COUNT(*) AS my_reports,
+                   SUM(CASE WHEN status IN ('OPEN', 'CLAIM_PENDING') THEN 1 ELSE 0 END) AS active_reports,
+                   SUM(CASE WHEN report_type = 'FOUND' AND status = 'RETURNED' THEN 1 ELSE 0 END) AS returned_items
+            FROM items
+            WHERE user_id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+        pending_claims = connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM claims
+            WHERE claimant_id = ? AND claim_status = 'PENDING'
+            """,
+            (user_id,),
+        ).fetchone()['count']
+        claims_awaiting_review = connection.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM claims
+            JOIN items ON items.item_id = claims.item_id
+            WHERE items.user_id = ?
+              AND items.report_type = 'FOUND'
+              AND claims.claim_status = 'PENDING'
+            """,
+            (user_id,),
+        ).fetchone()['count']
+        recent_reports = connection.execute(
+            """
+            SELECT item_id, title, report_type, category, status, date_lost_found
+            FROM items
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 5
+            """,
+            (user_id,),
+        ).fetchall()
+        recent_claims = connection.execute(
+            """
+            SELECT claims.claim_id, items.item_id, items.title,
+                   claims.claim_status, claims.created_at
+            FROM claims
+            JOIN items ON items.item_id = claims.item_id
+            WHERE claims.claimant_id = ?
+            ORDER BY claims.created_at DESC
+            LIMIT 5
+            """,
+            (user_id,),
+        ).fetchall()
+    finally:
+        connection.close()
 
-    return render_template('dashboard.html', first_name=session['first_name'])
+    stats = {
+        'my_reports': report_stats['my_reports'],
+        'active_reports': report_stats['active_reports'] or 0,
+        'pending_claims': pending_claims,
+        'returned_items': report_stats['returned_items'] or 0,
+    }
+    return render_template(
+        'dashboard.html',
+        first_name=session['first_name'],
+        stats=stats,
+        claims_awaiting_review=claims_awaiting_review,
+        recent_reports=recent_reports,
+        recent_claims=recent_claims,
+    )
 
 
 @app.route('/items/new', methods=['GET', 'POST'])

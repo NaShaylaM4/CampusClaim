@@ -5,5 +5,79 @@
 {% block content %}
 <section class="dashboard-page">
     <h1>Welcome back, {{ first_name }}!</h1>
+
+    <div class="dashboard-stats">
+        <article class="stat-card">
+            <span>My Reports</span>
+            <strong>{{ stats.my_reports }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Active Reports</span>
+            <strong>{{ stats.active_reports }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Pending Claims</span>
+            <strong>{{ stats.pending_claims }}</strong>
+        </article>
+        <article class="stat-card">
+            <span>Returned Items</span>
+            <strong>{{ stats.returned_items }}</strong>
+        </article>
+    </div>
+
+    <section class="dashboard-section review-section">
+        <div>
+            <h2>Claims Awaiting Review</h2>
+            {% if claims_awaiting_review %}
+                <p>You have {{ claims_awaiting_review }} claim{% if claims_awaiting_review != 1 %}s{% endif %} awaiting review.</p>
+                <a class="button button-primary" href="{{ url_for('claims_received') }}">Review Claims</a>
+            {% else %}
+                <p>No claims are currently awaiting your review.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <div class="dashboard-columns">
+        <section class="dashboard-section">
+            <div class="section-heading">
+                <h2>Recent Reports</h2>
+                <a href="{{ url_for('create_item') }}">Report an Item</a>
+            </div>
+            {% if recent_reports %}
+                <div class="dashboard-list">
+                    {% for report in recent_reports %}
+                        <article class="dashboard-list-item">
+                            <div>
+                                <h3>{{ report.title }}</h3>
+                                <p>{{ report.report_type }} | {{ report.category }} | {{ report.status }} | {{ report.date_lost_found }}</p>
+                            </div>
+                            <a href="{{ url_for('item_details', item_id=report.item_id) }}">View Details</a>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">You have not created any item reports yet.</p>
+            {% endif %}
+        </section>
+
+        <section class="dashboard-section">
+            <h2>Recent Claims</h2>
+            {% if recent_claims %}
+                <div class="dashboard-list">
+                    {% for claim in recent_claims %}
+                        <article class="dashboard-list-item">
+                            <div>
+                                <h3>{{ claim.title }}</h3>
+                                <p>{{ claim.claim_status }} | {{ claim.created_at }}</p>
+                            </div>
+                            <a href="{{ url_for('item_details', item_id=claim.item_id) }}">View Item</a>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="empty-state">You have not submitted any ownership claims yet.</p>
+            {% endif %}
+        </section>
+    </div>
 </section>
 {% endblock %}
