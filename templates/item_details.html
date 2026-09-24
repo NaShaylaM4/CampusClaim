@@ -4,10 +4,17 @@
 
 {% block content %}
 <section class="details-page">
-    <h1>{{ item.title }}</h1>
+    <div class="details-heading">
+        <div>
+            <p class="eyebrow">Item report</p>
+            <h1>{{ item.title }}</h1>
+        </div>
+        <div class="details-badges">
+            <span class="badge badge-type badge-{{ item.report_type|lower }}">{{ item.report_type }}</span>
+            <span class="badge badge-status badge-status-{{ item.status|lower|replace('_', '-') }}">{{ item.status }}</span>
+        </div>
+    </div>
     <dl class="detail-list">
-        <dt>Report Type</dt>
-        <dd>{{ item.report_type }}</dd>
         <dt>Category</dt>
         <dd>{{ item.category }}</dd>
         <dt>Description</dt>
@@ -16,12 +23,12 @@
         <dd>{{ item.location }}</dd>
         <dt>Date Lost or Found</dt>
         <dd>{{ item.date_lost_found }}</dd>
-        <dt>Status</dt>
-        <dd>{{ item.status }}</dd>
     </dl>
-    {% if can_claim %}
-        <a class="button button-primary" href="{{ url_for('claim_item', item_id=item.item_id) }}">Claim This Item</a>
-    {% endif %}
-    <a class="button button-secondary" href="{{ url_for('browse_items') }}">Back to Browse Items</a>
+    <div class="form-actions">
+        {% if can_claim %}
+            <a class="button button-claim" href="{{ url_for('claim_item', item_id=item.item_id) }}">Claim This Item</a>
+        {% endif %}
+        <a class="button button-secondary" href="{{ url_for('browse_items') }}">Back to Browse Items</a>
+    </div>
 </section>
 {% endblock %}

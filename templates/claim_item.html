@@ -6,7 +6,12 @@
 <section class="form-page">
     <p class="eyebrow">Ownership claim</p>
     <h1>{{ item.title }}</h1>
-    <p class="report-meta">{{ item.category }} | {{ item.location }} | {{ item.date_lost_found }} | {{ item.status }}</p>
+    <div class="report-summary">
+        <span>{{ item.category }}</span>
+        <span>{{ item.location }}</span>
+        <span>{{ item.date_lost_found }}</span>
+        <span class="badge badge-status badge-status-{{ item.status|lower|replace('_', '-') }}">{{ item.status }}</span>
+    </div>
     <p>{{ item.description }}</p>
     <div class="verification-question">
         <strong>Verification Question</strong>

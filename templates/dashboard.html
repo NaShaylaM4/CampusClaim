@@ -49,7 +49,7 @@
                         <article class="dashboard-list-item">
                             <div>
                                 <h3>{{ report.title }}</h3>
-                                <p>{{ report.report_type }} | {{ report.category }} | {{ report.status }} | {{ report.date_lost_found }}</p>
+                                <p><span class="badge badge-type badge-{{ report.report_type|lower }}">{{ report.report_type }}</span> {{ report.category }} <span class="meta-divider">|</span> {{ report.date_lost_found }} <span class="badge badge-status badge-status-{{ report.status|lower|replace('_', '-') }}">{{ report.status }}</span></p>
                             </div>
                             <a href="{{ url_for('item_details', item_id=report.item_id) }}">View Details</a>
                         </article>
@@ -68,7 +68,7 @@
                         <article class="dashboard-list-item">
                             <div>
                                 <h3>{{ claim.title }}</h3>
-                                <p>{{ claim.claim_status }} | {{ claim.created_at }}</p>
+                                <p><span class="badge badge-claim badge-claim-{{ claim.claim_status|lower }}">{{ claim.claim_status }}</span> <span class="meta-divider">|</span> {{ claim.created_at }}</p>
                             </div>
                             <a href="{{ url_for('item_details', item_id=claim.item_id) }}">View Item</a>
                         </article>

@@ -52,11 +52,17 @@
                 <article class="item-card">
                     <div class="item-card-heading">
                         <h2>{{ item.title }}</h2>
-                        <span class="report-type">{{ item.report_type }}</span>
+                        <span class="badge badge-type badge-{{ item.report_type|lower }}">{{ item.report_type }}</span>
                     </div>
-                    <p class="report-meta">{{ item.category }} | {{ item.status }}</p>
-                    <p class="report-meta">{{ item.location }} | {{ item.date_lost_found }}</p>
-                    <a class="button button-secondary" href="{{ url_for('item_details', item_id=item.item_id) }}">View Details</a>
+                    <dl class="item-card-details">
+                        <div><dt>Category</dt><dd>{{ item.category }}</dd></div>
+                        <div><dt>Location</dt><dd>{{ item.location }}</dd></div>
+                        <div><dt>Date</dt><dd>{{ item.date_lost_found }}</dd></div>
+                    </dl>
+                    <div class="item-card-footer">
+                        <span class="badge badge-status badge-status-{{ item.status|lower|replace('_', '-') }}">{{ item.status }}</span>
+                        <a class="button button-secondary" href="{{ url_for('item_details', item_id=item.item_id) }}">View Details</a>
+                    </div>
                 </article>
             {% endfor %}
         </div>

@@ -11,7 +11,8 @@
                 <article class="report-row">
                     <div>
                         <h2>{{ claim.title }}</h2>
-                        <p class="report-meta">{{ claim.category }} | {{ claim.location }} | {{ claim.claim_status }} | {{ claim.created_at }}</p>
+                        <p class="report-meta">{{ claim.category }} <span class="meta-divider">|</span> {{ claim.location }} <span class="meta-divider">|</span> {{ claim.created_at }}</p>
+                        <span class="badge badge-claim badge-claim-{{ claim.claim_status|lower }}">{{ claim.claim_status }}</span>
                     </div>
                     <a class="button button-secondary" href="{{ url_for('item_details', item_id=claim.item_id) }}">View Item</a>
                 </article>
