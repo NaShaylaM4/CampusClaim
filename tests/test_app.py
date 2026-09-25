@@ -95,6 +95,31 @@ def test_dashboard_requires_login(client):
     assert response.location.endswith('/login')
 
 
+def test_how_it_works_is_public_and_explains_workflows(client):
+    response = client.get('/how-it-works')
+
+    assert response.status_code == 200
+    assert b'If You Lost Something' in response.data
+    assert b'If You Found Something' in response.data
+    assert b'Claims are submitted only against FOUND reports.' in response.data
+    assert b'CLAIM_PENDING' in response.data
+    assert b'APPROVED' in response.data
+
+
+def test_open_lost_item_links_to_found_items(client, database_path):
+    register(client, 'alice@example.com')
+    login(client, 'alice@example.com')
+    create_item(client, title='Lost Keys')
+    item_id = fetch_value(database_path, 'SELECT item_id FROM items WHERE title = ?', ('Lost Keys',))
+
+    response = client.get(f'/items/{item_id}')
+
+    assert response.status_code == 200
+    assert b'Still looking for your item?' in response.data
+    assert b'href="/items?report_type=FOUND"' in response.data
+    assert b'Search Found Items' in response.data
+
+
 def test_create_lost_item(client, database_path):
     register(client, 'alice@example.com')
     login(client, 'alice@example.com')

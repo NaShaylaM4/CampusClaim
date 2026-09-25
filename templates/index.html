@@ -16,4 +16,35 @@
         </div>
     </div>
 </section>
+
+<section class="home-guidance">
+    <div class="home-guidance-heading">
+        <p class="eyebrow">A clearer path from report to return</p>
+        <h2>How CampusClaim Works</h2>
+        <p>Whether you lost an item or found one, CampusClaim keeps the next step clear.</p>
+    </div>
+    <div class="workflow-grid">
+        <article class="workflow-card">
+            <span class="workflow-icon">01</span>
+            <h3>Lost Something?</h3>
+            <ul>
+                <li>Report your lost item.</li>
+                <li>Search FOUND reports.</li>
+                <li>Find a possible match.</li>
+                <li>Submit an ownership claim.</li>
+            </ul>
+        </article>
+        <article class="workflow-card">
+            <span class="workflow-icon workflow-icon-found">02</span>
+            <h3>Found Something?</h3>
+            <ul>
+                <li>Report the found item.</li>
+                <li>Add a private verification question.</li>
+                <li>Review claims.</li>
+                <li>Approve the owner and coordinate the return.</li>
+            </ul>
+        </article>
+    </div>
+    <a class="button button-secondary" href="{{ url_for('how_it_works') }}">Learn How CampusClaim Works</a>
+</section>
 {% endblock %}

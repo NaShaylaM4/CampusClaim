@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}How It Works | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="guidance-page">
+    <div class="guidance-intro">
+        <p class="eyebrow">A simple campus workflow</p>
+        <h1>How CampusClaim Works</h1>
+        <p>CampusClaim helps students report lost and found property, review ownership claims, and coordinate returns with confidence.</p>
+    </div>
+
+    <div class="workflow-grid guidance-workflows">
+        <article class="workflow-card workflow-card-large">
+            <span class="workflow-icon">01</span>
+            <h2>If You Lost Something</h2>
+            <ol>
+                <li>Create a <strong>LOST</strong> report.</li>
+                <li>Browse <strong>FOUND</strong> reports.</li>
+                <li>If you find a possible match, open the FOUND report.</li>
+                <li>Submit an ownership claim.</li>
+                <li>Answer the finder's private verification question.</li>
+                <li>Wait for the finder to approve or reject the claim.</li>
+                <li>If approved, coordinate the item's return with the finder.</li>
+            </ol>
+        </article>
+        <article class="workflow-card workflow-card-large">
+            <span class="workflow-icon workflow-icon-found">02</span>
+            <h2>If You Found Something</h2>
+            <ol>
+                <li>Create a <strong>FOUND</strong> report.</li>
+                <li>Provide general information about the item without revealing every identifying detail.</li>
+                <li>Add a private verification question that the real owner should know.</li>
+                <li>Wait for ownership claims.</li>
+                <li>Review the claimant's verification answer and optional message.</li>
+                <li>Approve the person you believe owns the item or reject claims that do not verify ownership.</li>
+                <li>Coordinate the return with the approved claimant.</li>
+                <li>Mark the item <strong>RETURNED</strong> after it has been given back.</li>
+            </ol>
+        </article>
+    </div>
+
+    <aside class="guidance-callout">
+        <strong>Important:</strong> Users do not submit claims against LOST reports. Claims are submitted only against FOUND reports.
+    </aside>
+
+    <div class="status-grid">
+        <section class="status-panel">
+            <h2>Item statuses</h2>
+            <dl class="status-list">
+                <dt><span class="badge badge-status badge-status-open">OPEN</span></dt>
+                <dd>The report is active.</dd>
+                <dt><span class="badge badge-status badge-status-claim-pending">CLAIM_PENDING</span></dt>
+                <dd>One or more ownership claims are being reviewed.</dd>
+                <dt><span class="badge badge-status badge-status-returned">RETURNED</span></dt>
+                <dd>The found item has been returned to its owner.</dd>
+                <dt><span class="badge badge-status badge-status-closed">CLOSED</span></dt>
+                <dd>The report is no longer active.</dd>
+            </dl>
+        </section>
+        <section class="status-panel">
+            <h2>Claim statuses</h2>
+            <dl class="status-list">
+                <dt><span class="badge badge-claim badge-claim-pending">PENDING</span></dt>
+                <dd>Waiting for the finder to review the claim.</dd>
+                <dt><span class="badge badge-claim badge-claim-approved">APPROVED</span></dt>
+                <dd>The finder accepted the ownership claim and return coordination can begin.</dd>
+                <dt><span class="badge badge-claim badge-claim-rejected">REJECTED</span></dt>
+                <dd>The finder could not verify ownership from the information provided.</dd>
+            </dl>
+        </section>
+    </div>
+</section>
+{% endblock %}

@@ -24,6 +24,15 @@
         <dt>Date Lost or Found</dt>
         <dd>{{ item.date_lost_found }}</dd>
     </dl>
+    {% if item.report_type == 'LOST' and item.status == 'OPEN' %}
+        <section class="lost-guidance">
+            <div>
+                <h2>Still looking for your item?</h2>
+                <p>Search current FOUND reports for a possible match.</p>
+            </div>
+            <a class="button button-primary" href="{{ url_for('browse_items', report_type='FOUND') }}">Search Found Items</a>
+        </section>
+    {% endif %}
     <div class="form-actions">
         {% if can_claim %}
             <a class="button button-claim" href="{{ url_for('claim_item', item_id=item.item_id) }}">Claim This Item</a>

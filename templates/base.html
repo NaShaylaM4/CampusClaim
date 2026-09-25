@@ -13,6 +13,7 @@
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
                 <a href="{{ url_for('browse_items') }}">Browse Items</a>
+                <a href="{{ url_for('how_it_works') }}">How It Works</a>
                 {% if session.get('logged_in') %}
                     <a href="{{ url_for('create_item') }}">Report Item</a>
                     <a href="{{ url_for('my_reports') }}">My Reports</a>
