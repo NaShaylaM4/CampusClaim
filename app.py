@@ -449,9 +449,17 @@ def my_claims():
         claims = connection.execute(
             """
             SELECT claims.claim_id, items.item_id, items.title, items.category,
-                   items.location, claims.claim_status, claims.created_at
+                   items.location, items.status AS item_status,
+                   claims.claim_status, claims.created_at, claims.return_instructions,
+                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.first_name END
+                       AS finder_first_name,
+                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.last_name END
+                       AS finder_last_name,
+                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.email END
+                       AS finder_email
             FROM claims
             JOIN items ON items.item_id = claims.item_id
+            JOIN users ON users.user_id = items.user_id
             WHERE claims.claimant_id = ?
             ORDER BY claims.created_at DESC
             """,
@@ -470,10 +478,13 @@ def claims_received():
         claims = connection.execute(
             """
             SELECT claims.claim_id, claims.item_id, claims.verification_answer,
-                   claims.additional_message, claims.claim_status, claims.created_at,
+                   claims.additional_message, claims.return_instructions,
+                   claims.claim_status, claims.created_at,
                    items.title, items.status AS item_status,
                    users.first_name, users.last_name,
-                   items.verification_question
+                   items.verification_question,
+                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.email END
+                       AS claimant_email
             FROM claims
             JOIN items ON items.item_id = claims.item_id
             JOIN users ON users.user_id = claims.claimant_id
@@ -578,6 +589,39 @@ def reject_claim(claim_id):
                 )
             connection.commit()
             flash('Claim rejected.', 'success')
+    finally:
+        connection.close()
+    return redirect(url_for('claims_received'))
+
+
+@app.route('/claims/<int:claim_id>/return-instructions', methods=['POST'])
+@login_required
+def update_return_instructions(claim_id):
+    return_instructions = request.form.get('return_instructions', '').strip()
+    connection, claim = get_owned_claim(claim_id)
+    try:
+        if claim is None:
+            flash('Claim not found.', 'error')
+        elif claim['user_id'] != session['user_id'] or claim['report_type'] != 'FOUND':
+            flash('You can only update return instructions for your own found item reports.', 'error')
+        elif claim['claim_status'] != 'APPROVED':
+            flash('Return instructions can only be added to approved claims.', 'error')
+        elif claim['item_status'] == 'CLOSED':
+            flash('Return instructions cannot be updated for a closed item.', 'error')
+        elif not return_instructions:
+            flash('Please provide return instructions.', 'error')
+        else:
+            connection.execute(
+                """
+                UPDATE claims
+                SET return_instructions = ?
+                WHERE claim_id = ?
+                  AND claim_status = 'APPROVED'
+                """,
+                (return_instructions, claim_id),
+            )
+            connection.commit()
+            flash('Return instructions saved.', 'success')
     finally:
         connection.close()
     return redirect(url_for('claims_received'))

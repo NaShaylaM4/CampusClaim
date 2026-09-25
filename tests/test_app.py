@@ -386,3 +386,129 @@ def test_dashboard_statistics_are_user_specific(client, database_path):
     assert b'Bob Claimable' in response.data
     assert b'Alice Lost' in response.data
     assert b'Charlie' not in response.data
+
+
+def test_pending_claim_does_not_show_contact_email(client, database_path):
+    item_id, _ = create_claim_between_users(client, database_path)
+    login(client, 'bob@example.com')
+
+    response = client.get('/my-claims')
+
+    assert response.status_code == 200
+    assert b'alice@example.com' not in response.data
+
+
+def test_approved_claim_shows_finder_contact(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+    login(client, 'bob@example.com')
+
+    response = client.get('/my-claims')
+
+    assert b'Test User' in response.data
+    assert b'alice@example.com' in response.data
+    assert b'Return Coordination' in response.data
+
+
+def test_finder_can_see_approved_claimant_email(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+
+    response = client.get('/claims/received')
+
+    assert b'bob@example.com' in response.data
+    assert b'Approved Owner Contact' in response.data
+
+
+def test_item_owner_can_add_return_instructions(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+
+    response = client.post(
+        f'/claims/{claim_id}/return-instructions',
+        data={'return_instructions': 'Meet at the Student Center front desk.'},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b'Return instructions saved.' in response.data
+    assert fetch_value(
+        database_path,
+        'SELECT return_instructions FROM claims WHERE claim_id = ?',
+        (claim_id,),
+    ) == 'Meet at the Student Center front desk.'
+
+
+def test_non_owner_cannot_add_return_instructions(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    register(client, 'charlie@example.com')
+    login(client, 'charlie@example.com')
+
+    response = client.post(
+        f'/claims/{claim_id}/return-instructions',
+        data={'return_instructions': 'Unauthorized instructions'},
+        follow_redirects=True,
+    )
+
+    assert b'only update return instructions for your own found item reports' in response.data
+    assert fetch_value(
+        database_path,
+        'SELECT return_instructions FROM claims WHERE claim_id = ?',
+        (claim_id,),
+    ) is None
+
+
+def test_pending_claim_cannot_receive_return_instructions(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+
+    response = client.post(
+        f'/claims/{claim_id}/return-instructions',
+        data={'return_instructions': 'Too early'},
+        follow_redirects=True,
+    )
+
+    assert b'only be added to approved claims' in response.data
+    assert fetch_value(
+        database_path,
+        'SELECT return_instructions FROM claims WHERE claim_id = ?',
+        (claim_id,),
+    ) is None
+
+
+def test_approved_claimant_can_view_return_instructions(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+    client.post(
+        f'/claims/{claim_id}/return-instructions',
+        data={'return_instructions': 'Bring your student ID.'},
+    )
+    login(client, 'bob@example.com')
+
+    response = client.get('/my-claims')
+
+    assert b'Bring your student ID.' in response.data
+
+
+def test_return_instructions_migration_is_idempotent(tmp_path, monkeypatch, capsys):
+    from database import migrate_add_return_instructions as migration
+
+    database_path = tmp_path / 'migration-test.db'
+    with sqlite3.connect(database_path) as connection:
+        connection.execute('CREATE TABLE claims (claim_id INTEGER PRIMARY KEY)')
+
+    monkeypatch.setattr(migration, 'DATABASE_PATH', database_path)
+    migration.migrate_database()
+    migration.migrate_database()
+
+    with sqlite3.connect(database_path) as connection:
+        column_names = [row[1] for row in connection.execute('PRAGMA table_info(claims)')]
+
+    output = capsys.readouterr().out
+    assert 'Migration applied' in output
+    assert 'already exists' in output
+    assert column_names.count('return_instructions') == 1

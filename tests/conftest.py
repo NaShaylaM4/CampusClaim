@@ -37,6 +37,7 @@ CREATE TABLE claims (
     claimant_id INTEGER NOT NULL,
     verification_answer TEXT NOT NULL,
     additional_message TEXT,
+    return_instructions TEXT,
     claim_status TEXT NOT NULL DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP,

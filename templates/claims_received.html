@@ -28,10 +28,31 @@
                             </form>
                         </div>
                     {% endif %}
-                    {% if claim.claim_status == 'APPROVED' and claim.item_status != 'RETURNED' %}
-                        <form method="post" action="{{ url_for('mark_item_returned', item_id=claim.item_id) }}">
-                            <button class="button button-return" type="submit">Mark Item Returned</button>
-                        </form>
+                    {% if claim.claim_status == 'APPROVED' %}
+                        <section class="coordination-panel">
+                            <h3>Approved Owner Contact</h3>
+                            <p><strong>Owner:</strong> {{ claim.first_name }} {{ claim.last_name }}</p>
+                            <p><strong>Email:</strong> {{ claim.claimant_email }}</p>
+                            {% if claim.return_instructions %}
+                                <p><strong>Current Return Instructions:</strong> {{ claim.return_instructions }}</p>
+                            {% else %}
+                                <p class="claim-guidance">No return instructions have been added yet.</p>
+                            {% endif %}
+                            <form class="return-instructions-form" method="post" action="{{ url_for('update_return_instructions', claim_id=claim.claim_id) }}">
+                                <label>
+                                    Return Instructions
+                                    <textarea name="return_instructions" required>{{ claim.return_instructions or '' }}</textarea>
+                                </label>
+                                <button class="button button-secondary" type="submit">Save Return Instructions</button>
+                            </form>
+                        </section>
+                        {% if claim.item_status == 'RETURNED' %}
+                            <p class="returned-note">This item has been returned.</p>
+                        {% else %}
+                            <form method="post" action="{{ url_for('mark_item_returned', item_id=claim.item_id) }}">
+                                <button class="button button-return" type="submit">Mark Item Returned</button>
+                            </form>
+                        {% endif %}
                     {% endif %}
                 </article>
             {% endfor %}

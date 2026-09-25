@@ -13,6 +13,25 @@
                         <h2>{{ claim.title }}</h2>
                         <p class="report-meta">{{ claim.category }} <span class="meta-divider">|</span> {{ claim.location }} <span class="meta-divider">|</span> {{ claim.created_at }}</p>
                         <span class="badge badge-claim badge-claim-{{ claim.claim_status|lower }}">{{ claim.claim_status }}</span>
+                        {% if claim.claim_status == 'PENDING' %}
+                            <p class="claim-guidance">Waiting for the finder to review your ownership claim.</p>
+                        {% elif claim.claim_status == 'REJECTED' %}
+                            <p class="claim-guidance">The finder could not verify ownership based on the information provided.</p>
+                        {% elif claim.claim_status == 'APPROVED' %}
+                            <section class="coordination-panel">
+                                <h3>Return Coordination</h3>
+                                {% if claim.item_status == 'RETURNED' %}
+                                    <p class="returned-note">This item has been returned.</p>
+                                {% endif %}
+                                <p><strong>Finder:</strong> {{ claim.finder_first_name }} {{ claim.finder_last_name }}</p>
+                                <p><strong>Email:</strong> {{ claim.finder_email }}</p>
+                                {% if claim.return_instructions %}
+                                    <p><strong>Return Instructions:</strong> {{ claim.return_instructions }}</p>
+                                {% else %}
+                                    <p class="claim-guidance">The finder has not added return instructions yet. You may contact them using the email above.</p>
+                                {% endif %}
+                            </section>
+                        {% endif %}
                     </div>
                     <a class="button button-secondary" href="{{ url_for('item_details', item_id=claim.item_id) }}">View Item</a>
                 </article>

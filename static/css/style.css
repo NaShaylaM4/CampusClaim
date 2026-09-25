@@ -463,6 +463,58 @@ h1 {
     margin: 0;
 }
 
+.claim-guidance {
+    color: var(--muted);
+}
+
+.coordination-panel {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.45rem;
+    padding: 1rem;
+    background: var(--blue-50);
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+}
+
+.coordination-panel h3,
+.coordination-panel p {
+    margin: 0;
+}
+
+.coordination-panel h3 {
+    color: var(--blue-700);
+    font-size: 1rem;
+}
+
+.return-instructions-form {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+}
+
+.return-instructions-form label {
+    display: grid;
+    gap: 0.45rem;
+    font-weight: 700;
+}
+
+.return-instructions-form textarea {
+    min-height: 100px;
+    padding: 0.7rem 0.8rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font: inherit;
+    resize: vertical;
+}
+
+.returned-note {
+    color: #166534;
+    font-weight: 700;
+}
+
 .claim-heading,
 .details-heading,
 .item-card-heading,
