@@ -1,8 +1,11 @@
 from pathlib import Path
+import os
 import sqlite3
 
 
-DATABASE_PATH = Path(__file__).resolve().parent / 'campusclaim.db'
+DATABASE_PATH = Path(
+    os.environ.get('DATABASE_PATH', Path(__file__).resolve().parent / 'campusclaim.db')
+)
 
 
 def initialize_database():

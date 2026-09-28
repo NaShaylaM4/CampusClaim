@@ -9,7 +9,12 @@ app = Flask(__name__)
 # Development-only fallback; deployments must provide SECRET_KEY.
 app.secret_key = os.environ.get('SECRET_KEY', 'campusclaim-development-secret-key')
 
-DATABASE_PATH = Path(__file__).resolve().parent / 'database' / 'campusclaim.db'
+DATABASE_PATH = Path(
+    os.environ.get(
+        'DATABASE_PATH',
+        Path(__file__).resolve().parent / 'database' / 'campusclaim.db',
+    )
+)
 CATEGORIES = [
     'Electronics',
     'Phones',
