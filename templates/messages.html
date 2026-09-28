@@ -17,6 +17,11 @@
         </div>
     </header>
 
+    <aside class="safe-return-notice">
+        <h2>Safe Return Reminder</h2>
+        <p>For safety, arrange item returns in a public campus location such as a student center, residence hall desk, library service desk, or campus office. Avoid sharing passwords or other sensitive personal information in messages.</p>
+    </aside>
+
     {% if claim.item_status == 'RETURNED' %}
         <p class="conversation-archive" role="status">This item has been returned. This conversation is now archived.</p>
     {% elif claim.item_status == 'CLOSED' %}

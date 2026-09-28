@@ -537,6 +537,47 @@ h1 {
     color: var(--muted);
 }
 
+.safe-return-notice {
+    margin: 1rem 0;
+    padding: 0.9rem 1rem;
+    color: #075985;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    border-left: 4px solid #0284c7;
+    border-radius: 8px;
+}
+
+.safe-return-notice h2,
+.safe-return-notice p {
+    margin: 0;
+}
+
+.safe-return-notice h2 {
+    margin-bottom: 0.25rem;
+    font-size: 1rem;
+}
+
+.safe-return-guidance {
+    max-width: 820px;
+}
+
+.error-page {
+    width: min(720px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: clamp(4rem, 12vw, 8rem) 0;
+}
+
+.error-page h1 {
+    margin-bottom: 0.9rem;
+    font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.error-page > p:not(.eyebrow) {
+    margin: 0 0 1.5rem;
+    color: var(--muted);
+    font-size: 1.05rem;
+}
+
 .conversation-statuses {
     display: flex;
     flex-wrap: wrap;

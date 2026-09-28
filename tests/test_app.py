@@ -95,6 +95,15 @@ def test_dashboard_requires_login(client):
     assert response.location.endswith('/login')
 
 
+def test_not_found_page_uses_custom_template(client):
+    response = client.get('/this-page-does-not-exist')
+
+    assert response.status_code == 404
+    assert b'Page Not Found' in response.data
+    assert b"The page you're looking for does not exist or may have moved." in response.data
+    assert b'Browse Items' in response.data
+
+
 def test_how_it_works_is_public_and_explains_workflows(client):
     response = client.get('/how-it-works')
 
