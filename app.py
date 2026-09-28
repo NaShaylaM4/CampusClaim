@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from pathlib import Path
 
@@ -5,8 +6,8 @@ from flask import Flask, abort, flash, redirect, render_template, request, sessi
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'campusclaim-development-secret-key'
-# Move the secret key to an environment variable before deployment.
+# Development-only fallback; deployments must provide SECRET_KEY.
+app.secret_key = os.environ.get('SECRET_KEY', 'campusclaim-development-secret-key')
 
 DATABASE_PATH = Path(__file__).resolve().parent / 'database' / 'campusclaim.db'
 CATEGORIES = [
