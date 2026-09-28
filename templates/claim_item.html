@@ -13,11 +13,18 @@
         <span class="badge badge-status badge-status-{{ item.status|lower|replace('_', '-') }}">{{ item.status }}</span>
     </div>
     <p>{{ item.description }}</p>
-    <div class="verification-question">
-        <strong>Verification Question</strong>
-        <p>{{ item.verification_question }}</p>
-    </div>
     <form class="form" method="post">
+        <label>
+            Related Lost Report
+            <select name="lost_item_id">
+                <option value="" {% if not selected_lost_item_id %}selected{% endif %}>I did not create a Lost report for this item</option>
+                {% for lost_report in lost_reports %}
+                    <option value="{{ lost_report.item_id }}" {% if selected_lost_item_id|string == lost_report.item_id|string %}selected{% endif %}>
+                        {{ lost_report.title }} — {{ lost_report.location }} — {{ lost_report.date_lost_found }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
         <label>
             Verification Answer
             <textarea name="verification_answer" required></textarea>
@@ -28,5 +35,9 @@
         </label>
         <button class="button button-primary" type="submit">Submit Claim</button>
     </form>
+    <div class="verification-question">
+        <strong>Verification Question</strong>
+        <p>{{ item.verification_question }}</p>
+    </div>
 </section>
 {% endblock %}

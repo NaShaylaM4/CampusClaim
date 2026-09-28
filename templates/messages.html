@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Conversation | CampusClaim{% endblock %}
+
+{% block content %}
+<section class="conversation-page">
+    <header class="conversation-header">
+        <div>
+            <p class="eyebrow">Private conversation</p>
+            <h1>{{ claim.title }}</h1>
+            <p class="conversation-participant">Conversation with {{ other_name }}</p>
+        </div>
+        <div class="conversation-statuses">
+            <span class="badge badge-type badge-found">FOUND</span>
+            <span class="badge badge-status badge-status-{{ claim.item_status|lower|replace('_', '-') }}">{{ claim.item_status }}</span>
+            <span class="badge badge-claim badge-claim-approved">{{ claim.claim_status }}</span>
+        </div>
+    </header>
+
+    {% if claim.item_status == 'RETURNED' %}
+        <p class="conversation-archive" role="status">This item has been returned. This conversation is now archived.</p>
+    {% elif claim.item_status == 'CLOSED' %}
+        <p class="conversation-archive" role="status">This item is closed. This conversation is now archived.</p>
+    {% endif %}
+
+    <div class="message-thread" aria-label="Message history" aria-live="polite">
+        {% if messages %}
+            {% for message in messages %}
+                <article class="message-bubble {% if message.sender_id == current_user_id %}message-sent{% else %}message-received{% endif %}">
+                    <div class="message-meta">
+                        <strong>{{ message.sender_first_name }}</strong>
+                        <time>{{ message.created_at }}</time>
+                    </div>
+                    <p>{{ message.message_text }}</p>
+                </article>
+            {% endfor %}
+        {% else %}
+            <p class="empty-state">No messages yet. Start the conversation when you are ready.</p>
+        {% endif %}
+    </div>
+
+    {% if claim.item_status not in ('RETURNED', 'CLOSED') %}
+        <form class="message-compose" method="post" action="{{ url_for('send_claim_message', claim_id=claim.claim_id) }}">
+            <label for="message_text">Message</label>
+            <textarea id="message_text" name="message_text" maxlength="1000" required></textarea>
+            <div class="message-compose-footer">
+                <span>Maximum 1000 characters</span>
+                <button class="button button-primary" type="submit">Send Message</button>
+            </div>
+        </form>
+    {% endif %}
+</section>
+{% endblock %}

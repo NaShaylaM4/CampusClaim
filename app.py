@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -362,7 +362,18 @@ def item_details(item_id):
         and item['status'] in ('OPEN', 'CLAIM_PENDING')
         and approved_claim is None
     )
-    return render_template('item_details.html', item=item, can_claim=can_claim)
+    can_close_lost = (
+        session.get('logged_in')
+        and item['report_type'] == 'LOST'
+        and item['user_id'] == session['user_id']
+        and item['status'] == 'OPEN'
+    )
+    return render_template(
+        'item_details.html',
+        item=item,
+        can_claim=can_claim,
+        can_close_lost=can_close_lost,
+    )
 
 
 @app.route('/items/<int:item_id>/claim', methods=['GET', 'POST'])
@@ -387,6 +398,24 @@ def claim_item(item_id):
             "SELECT claim_id FROM claims WHERE item_id = ? AND claim_status = 'APPROVED'",
             (item_id,),
         ).fetchone()
+        lost_reports = connection.execute(
+            """
+            SELECT items.item_id, items.title, items.category,
+                   items.location, items.date_lost_found
+            FROM items
+            WHERE items.user_id = ?
+              AND items.report_type = 'LOST'
+              AND items.status = 'OPEN'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM claims
+                  WHERE claims.lost_item_id = items.item_id
+                    AND claims.claim_status IN ('PENDING', 'APPROVED')
+              )
+            ORDER BY items.created_at DESC
+            """,
+            (session['user_id'],),
+        ).fetchall()
     finally:
         connection.close()
 
@@ -412,19 +441,72 @@ def claim_item(item_id):
     if request.method == 'POST':
         verification_answer = request.form.get('verification_answer', '').strip()
         additional_message = request.form.get('additional_message', '').strip()
+        lost_item_id = request.form.get('lost_item_id', '').strip()
         if not verification_answer:
             flash('Please provide a verification answer.', 'error')
-            return render_template('claim_item.html', item=item)
+            return render_template(
+                'claim_item.html',
+                item=item,
+                lost_reports=lost_reports,
+                selected_lost_item_id=lost_item_id,
+            )
+
+        if lost_item_id:
+            try:
+                lost_item_id = int(lost_item_id)
+            except ValueError:
+                flash('Please select a valid related lost report.', 'error')
+                return render_template(
+                    'claim_item.html',
+                    item=item,
+                    lost_reports=lost_reports,
+                    selected_lost_item_id='',
+                )
+        else:
+            lost_item_id = None
 
         connection = get_db_connection()
         try:
             connection.execute('BEGIN IMMEDIATE')
+            if lost_item_id is not None:
+                eligible_lost_report = connection.execute(
+                    """
+                    SELECT item_id
+                    FROM items
+                    WHERE item_id = ?
+                      AND user_id = ?
+                      AND report_type = 'LOST'
+                      AND status = 'OPEN'
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM claims
+                          WHERE claims.lost_item_id = items.item_id
+                            AND claims.claim_status IN ('PENDING', 'APPROVED')
+                      )
+                    """,
+                    (lost_item_id, session['user_id']),
+                ).fetchone()
+                if eligible_lost_report is None:
+                    connection.rollback()
+                    flash('Please select one of your eligible open lost reports.', 'error')
+                    return render_template(
+                        'claim_item.html',
+                        item=item,
+                        lost_reports=lost_reports,
+                        selected_lost_item_id=str(lost_item_id),
+                    )
             connection.execute(
                 """
-                INSERT INTO claims (item_id, claimant_id, verification_answer, additional_message, claim_status)
-                VALUES (?, ?, ?, ?, 'PENDING')
+                INSERT INTO claims (
+                    item_id, claimant_id, lost_item_id, verification_answer,
+                    additional_message, claim_status
+                )
+                VALUES (?, ?, ?, ?, ?, 'PENDING')
                 """,
-                (item_id, session['user_id'], verification_answer, additional_message or None),
+                (
+                    item_id, session['user_id'], lost_item_id, verification_answer,
+                    additional_message or None,
+                ),
             )
             connection.execute(
                 "UPDATE items SET status = 'CLAIM_PENDING', updated_at = CURRENT_TIMESTAMP "
@@ -438,7 +520,12 @@ def claim_item(item_id):
         flash('Your ownership claim was submitted.', 'success')
         return redirect(url_for('my_claims'))
 
-    return render_template('claim_item.html', item=item)
+    return render_template(
+        'claim_item.html',
+        item=item,
+        lost_reports=lost_reports,
+        selected_lost_item_id='',
+    )
 
 
 @app.route('/my-claims')
@@ -450,16 +537,21 @@ def my_claims():
             """
             SELECT claims.claim_id, items.item_id, items.title, items.category,
                    items.location, items.status AS item_status,
-                   claims.claim_status, claims.created_at, claims.return_instructions,
-                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.first_name END
-                       AS finder_first_name,
-                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.last_name END
-                       AS finder_last_name,
-                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.email END
-                       AS finder_email
+                   claims.claim_status, claims.created_at,
+                   CASE WHEN claims.claim_status = 'APPROVED' THEN (
+                       SELECT COUNT(*) FROM messages
+                       WHERE messages.claim_id = claims.claim_id
+                         AND messages.sender_id != claims.claimant_id
+                         AND messages.read_at IS NULL
+                   ) ELSE 0 END AS unread_count,
+                   claims.lost_item_id,
+                   lost_items.title AS lost_title,
+                   lost_items.category AS lost_category,
+                   lost_items.location AS lost_location,
+                   lost_items.date_lost_found AS lost_date_lost_found
             FROM claims
             JOIN items ON items.item_id = claims.item_id
-            JOIN users ON users.user_id = items.user_id
+            LEFT JOIN items AS lost_items ON lost_items.item_id = claims.lost_item_id
             WHERE claims.claimant_id = ?
             ORDER BY claims.created_at DESC
             """,
@@ -478,16 +570,26 @@ def claims_received():
         claims = connection.execute(
             """
             SELECT claims.claim_id, claims.item_id, claims.verification_answer,
-                   claims.additional_message, claims.return_instructions,
+                   claims.additional_message,
                    claims.claim_status, claims.created_at,
                    items.title, items.status AS item_status,
                    users.first_name, users.last_name,
                    items.verification_question,
-                   CASE WHEN claims.claim_status = 'APPROVED' THEN users.email END
-                       AS claimant_email
+                   CASE WHEN claims.claim_status = 'APPROVED' THEN (
+                       SELECT COUNT(*) FROM messages
+                       WHERE messages.claim_id = claims.claim_id
+                         AND messages.sender_id != items.user_id
+                         AND messages.read_at IS NULL
+                   ) ELSE 0 END AS unread_count,
+                   claims.lost_item_id,
+                   lost_items.title AS lost_title,
+                   lost_items.category AS lost_category,
+                   lost_items.location AS lost_location,
+                   lost_items.date_lost_found AS lost_date_lost_found
             FROM claims
             JOIN items ON items.item_id = claims.item_id
             JOIN users ON users.user_id = claims.claimant_id
+            LEFT JOIN items AS lost_items ON lost_items.item_id = claims.lost_item_id
             WHERE items.user_id = ? AND items.report_type = 'FOUND'
             ORDER BY claims.created_at DESC
             """,
@@ -496,6 +598,119 @@ def claims_received():
     finally:
         connection.close()
     return render_template('claims_received.html', claims=claims)
+
+
+def get_conversation_claim(claim_id):
+    connection = get_db_connection()
+    claim = connection.execute(
+        """
+        SELECT claims.claim_id, claims.claim_status, claims.claimant_id,
+               items.item_id, items.title, items.status AS item_status,
+               items.report_type, items.user_id AS finder_id,
+               finder.first_name AS finder_first_name,
+               finder.last_name AS finder_last_name,
+               claimant.first_name AS claimant_first_name,
+               claimant.last_name AS claimant_last_name
+        FROM claims
+        JOIN items ON items.item_id = claims.item_id
+        JOIN users AS finder ON finder.user_id = items.user_id
+        JOIN users AS claimant ON claimant.user_id = claims.claimant_id
+        WHERE claims.claim_id = ?
+        """,
+        (claim_id,),
+    ).fetchone()
+    return connection, claim
+
+
+def user_can_access_conversation(claim):
+    return (
+        claim is not None
+        and claim['claim_status'] == 'APPROVED'
+        and claim['report_type'] == 'FOUND'
+        and session['user_id'] in (claim['finder_id'], claim['claimant_id'])
+    )
+
+
+@app.route('/claims/<int:claim_id>/messages')
+@login_required
+def claim_messages(claim_id):
+    connection, claim = get_conversation_claim(claim_id)
+    try:
+        if not user_can_access_conversation(claim):
+            abort(404)
+
+        connection.execute(
+            """
+            UPDATE messages
+            SET read_at = CURRENT_TIMESTAMP
+            WHERE claim_id = ?
+              AND sender_id != ?
+              AND sender_id IN (?, ?)
+              AND read_at IS NULL
+            """,
+            (
+                claim_id,
+                session['user_id'],
+                claim['finder_id'],
+                claim['claimant_id'],
+            ),
+        )
+        connection.commit()
+        messages = connection.execute(
+            """
+            SELECT messages.message_id, messages.sender_id, messages.message_text,
+                   messages.created_at, users.first_name AS sender_first_name
+            FROM messages
+            JOIN users ON users.user_id = messages.sender_id
+            WHERE messages.claim_id = ?
+            ORDER BY messages.created_at ASC, messages.message_id ASC
+            """,
+            (claim_id,),
+        ).fetchall()
+        other_name = (
+            f"{claim['finder_first_name']} {claim['finder_last_name']}"
+            if session['user_id'] == claim['claimant_id']
+            else f"{claim['claimant_first_name']} {claim['claimant_last_name']}"
+        )
+    finally:
+        connection.close()
+
+    return render_template(
+        'messages.html',
+        claim=claim,
+        messages=messages,
+        other_name=other_name,
+        current_user_id=session['user_id'],
+    )
+
+
+@app.route('/claims/<int:claim_id>/messages/send', methods=['POST'])
+@login_required
+def send_claim_message(claim_id):
+    message_text = request.form.get('message_text', '').strip()
+    connection, claim = get_conversation_claim(claim_id)
+    try:
+        if not user_can_access_conversation(claim):
+            abort(404)
+        if claim['item_status'] in ('RETURNED', 'CLOSED'):
+            abort(403)
+        if not message_text:
+            flash('Please enter a message before sending.', 'error')
+        elif len(message_text) > 1000:
+            flash('Messages must be 1000 characters or fewer.', 'error')
+        else:
+            connection.execute(
+                """
+                INSERT INTO messages (claim_id, sender_id, message_text)
+                VALUES (?, ?, ?)
+                """,
+                (claim_id, session['user_id'], message_text),
+            )
+            connection.commit()
+            flash('Message sent.', 'success')
+    finally:
+        connection.close()
+    return redirect(url_for('claim_messages', claim_id=claim_id))
 
 
 def get_owned_claim(claim_id):
@@ -594,39 +809,6 @@ def reject_claim(claim_id):
     return redirect(url_for('claims_received'))
 
 
-@app.route('/claims/<int:claim_id>/return-instructions', methods=['POST'])
-@login_required
-def update_return_instructions(claim_id):
-    return_instructions = request.form.get('return_instructions', '').strip()
-    connection, claim = get_owned_claim(claim_id)
-    try:
-        if claim is None:
-            flash('Claim not found.', 'error')
-        elif claim['user_id'] != session['user_id'] or claim['report_type'] != 'FOUND':
-            flash('You can only update return instructions for your own found item reports.', 'error')
-        elif claim['claim_status'] != 'APPROVED':
-            flash('Return instructions can only be added to approved claims.', 'error')
-        elif claim['item_status'] == 'CLOSED':
-            flash('Return instructions cannot be updated for a closed item.', 'error')
-        elif not return_instructions:
-            flash('Please provide return instructions.', 'error')
-        else:
-            connection.execute(
-                """
-                UPDATE claims
-                SET return_instructions = ?
-                WHERE claim_id = ?
-                  AND claim_status = 'APPROVED'
-                """,
-                (return_instructions, claim_id),
-            )
-            connection.commit()
-            flash('Return instructions saved.', 'success')
-    finally:
-        connection.close()
-    return redirect(url_for('claims_received'))
-
-
 @app.route('/items/<int:item_id>/mark-returned', methods=['POST'])
 @login_required
 def mark_item_returned(item_id):
@@ -637,7 +819,11 @@ def mark_item_returned(item_id):
             (item_id,),
         ).fetchone()
         approved_claim = connection.execute(
-            "SELECT claim_id FROM claims WHERE item_id = ? AND claim_status = 'APPROVED'",
+            """
+            SELECT claim_id, claimant_id, lost_item_id
+            FROM claims
+            WHERE item_id = ? AND claim_status = 'APPROVED'
+            """,
             (item_id,),
         ).fetchone()
         if item is None:
@@ -649,16 +835,60 @@ def mark_item_returned(item_id):
         elif item['status'] == 'CLOSED' or approved_claim is None:
             flash('An approved claim is required before marking the item returned.', 'error')
         else:
+            connection.execute('BEGIN IMMEDIATE')
             connection.execute(
                 "UPDATE items SET status = 'RETURNED', updated_at = CURRENT_TIMESTAMP "
                 "WHERE item_id = ? AND user_id = ? AND status NOT IN ('RETURNED', 'CLOSED')",
                 (item_id, session['user_id']),
             )
+            if approved_claim['lost_item_id'] is not None:
+                connection.execute(
+                    """
+                    UPDATE items
+                    SET status = 'CLOSED', updated_at = CURRENT_TIMESTAMP
+                    WHERE item_id = ?
+                      AND user_id = ?
+                      AND report_type = 'LOST'
+                      AND status = 'OPEN'
+                    """,
+                    (approved_claim['lost_item_id'], approved_claim['claimant_id']),
+                )
             connection.commit()
             flash('Item marked as returned.', 'success')
     finally:
         connection.close()
     return redirect(url_for('claims_received'))
+
+
+@app.route('/items/<int:item_id>/close', methods=['POST'])
+@login_required
+def close_lost_item(item_id):
+    connection = get_db_connection()
+    try:
+        item = connection.execute(
+            "SELECT user_id, report_type, status FROM items WHERE item_id = ?",
+            (item_id,),
+        ).fetchone()
+        if item is None:
+            flash('Item report not found.', 'error')
+        elif item['user_id'] != session['user_id'] or item['report_type'] != 'LOST':
+            flash('You can only close your own lost reports.', 'error')
+        elif item['status'] != 'OPEN':
+            flash('Only open lost reports can be closed.', 'error')
+        else:
+            connection.execute(
+                """
+                UPDATE items
+                SET status = 'CLOSED', updated_at = CURRENT_TIMESTAMP
+                WHERE item_id = ? AND user_id = ? AND report_type = 'LOST' AND status = 'OPEN'
+                """,
+                (item_id, session['user_id']),
+            )
+            connection.commit()
+            flash('Lost report closed.', 'success')
+    finally:
+        connection.close()
+    return redirect(url_for('my_reports'))
 
 
 @app.route('/my-reports')

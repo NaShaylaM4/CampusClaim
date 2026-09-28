@@ -18,6 +18,14 @@
                     <p><strong>Verification Answer:</strong> {{ claim.verification_answer }}</p>
                     <p><strong>Additional Message:</strong> {{ claim.additional_message or 'None' }}</p>
                     <p class="report-meta"><strong>Submitted:</strong> {{ claim.created_at }}</p>
+                    {% if claim.lost_item_id %}
+                        <section class="linked-report-panel">
+                            <h3>Related Lost Report</h3>
+                            <p><strong>{{ claim.lost_title }}</strong></p>
+                            <p class="report-meta">{{ claim.lost_category }} <span class="meta-divider">|</span> {{ claim.lost_location }} <span class="meta-divider">|</span> {{ claim.lost_date_lost_found }}</p>
+                            <a href="{{ url_for('item_details', item_id=claim.lost_item_id) }}">View Report</a>
+                        </section>
+                    {% endif %}
                     {% if claim.claim_status == 'PENDING' %}
                         <div class="item-actions">
                             <form method="post" action="{{ url_for('approve_claim', claim_id=claim.claim_id) }}">
@@ -30,21 +38,15 @@
                     {% endif %}
                     {% if claim.claim_status == 'APPROVED' %}
                         <section class="coordination-panel">
-                            <h3>Approved Owner Contact</h3>
-                            <p><strong>Owner:</strong> {{ claim.first_name }} {{ claim.last_name }}</p>
-                            <p><strong>Email:</strong> {{ claim.claimant_email }}</p>
-                            {% if claim.return_instructions %}
-                                <p><strong>Current Return Instructions:</strong> {{ claim.return_instructions }}</p>
+                            <h3>Approved Claim</h3>
+                            {% if claim.item_status == 'RETURNED' or claim.item_status == 'CLOSED' %}
+                                <a class="button button-secondary" href="{{ url_for('claim_messages', claim_id=claim.claim_id) }}">View Conversation</a>
                             {% else %}
-                                <p class="claim-guidance">No return instructions have been added yet.</p>
+                                <a class="button button-primary" href="{{ url_for('claim_messages', claim_id=claim.claim_id) }}">Message Owner</a>
                             {% endif %}
-                            <form class="return-instructions-form" method="post" action="{{ url_for('update_return_instructions', claim_id=claim.claim_id) }}">
-                                <label>
-                                    Return Instructions
-                                    <textarea name="return_instructions" required>{{ claim.return_instructions or '' }}</textarea>
-                                </label>
-                                <button class="button button-secondary" type="submit">Save Return Instructions</button>
-                            </form>
+                            {% if claim.unread_count %}
+                                <p class="unread-count">{{ claim.unread_count }} new message{% if claim.unread_count != 1 %}s{% endif %}</p>
+                            {% endif %}
                         </section>
                         {% if claim.item_status == 'RETURNED' %}
                             <p class="returned-note">This item has been returned.</p>

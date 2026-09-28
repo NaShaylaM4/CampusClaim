@@ -238,12 +238,11 @@ def create_found_item_for_user(client, database_path, email, title):
     return item_id
 
 
-def submit_claim(client, item_id, answer='Blue'):
-    return client.post(
-        f'/items/{item_id}/claim',
-        data={'verification_answer': answer, 'additional_message': 'This is mine.'},
-        follow_redirects=True,
-    )
+def submit_claim(client, item_id, answer='Blue', lost_item_id=None):
+    data = {'verification_answer': answer, 'additional_message': 'This is mine.'}
+    if lost_item_id is not None:
+        data['lost_item_id'] = str(lost_item_id)
+    return client.post(f'/items/{item_id}/claim', data=data, follow_redirects=True)
 
 
 def test_submit_claim(client, database_path):
@@ -388,110 +387,398 @@ def test_dashboard_statistics_are_user_specific(client, database_path):
     assert b'Charlie' not in response.data
 
 
-def test_pending_claim_does_not_show_contact_email(client, database_path):
-    item_id, _ = create_claim_between_users(client, database_path)
+def approve_test_claim(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+    return item_id, claim_id
+
+
+def test_pending_claim_cannot_access_messages(client, database_path):
+    _, claim_id = create_claim_between_users(client, database_path)
     login(client, 'bob@example.com')
 
-    response = client.get('/my-claims')
+    response = client.get(f'/claims/{claim_id}/messages')
 
-    assert response.status_code == 200
-    assert b'alice@example.com' not in response.data
-
-
-def test_approved_claim_shows_finder_contact(client, database_path):
-    item_id, claim_id = create_claim_between_users(client, database_path)
-    login(client, 'alice@example.com')
-    client.post(f'/claims/{claim_id}/approve')
-    login(client, 'bob@example.com')
-
-    response = client.get('/my-claims')
-
-    assert b'Test User' in response.data
-    assert b'alice@example.com' in response.data
-    assert b'Return Coordination' in response.data
-
-
-def test_finder_can_see_approved_claimant_email(client, database_path):
-    item_id, claim_id = create_claim_between_users(client, database_path)
-    login(client, 'alice@example.com')
-    client.post(f'/claims/{claim_id}/approve')
-
-    response = client.get('/claims/received')
-
-    assert b'bob@example.com' in response.data
-    assert b'Approved Owner Contact' in response.data
-
-
-def test_item_owner_can_add_return_instructions(client, database_path):
-    item_id, claim_id = create_claim_between_users(client, database_path)
-    login(client, 'alice@example.com')
-    client.post(f'/claims/{claim_id}/approve')
-
-    response = client.post(
-        f'/claims/{claim_id}/return-instructions',
-        data={'return_instructions': 'Meet at the Student Center front desk.'},
-        follow_redirects=True,
+    assert response.status_code == 404
+    send_response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Before approval.'},
     )
+    assert send_response.status_code == 404
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM messages') == 0
+
+
+def test_rejected_claim_cannot_access_messages(client, database_path):
+    _, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/reject')
+    login(client, 'bob@example.com')
+
+    response = client.get(f'/claims/{claim_id}/messages')
+
+    assert response.status_code == 404
+    send_response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'After rejection.'},
+    )
+    assert send_response.status_code == 404
+
+
+def test_approved_claimant_can_open_conversation(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    login(client, 'bob@example.com')
+
+    response = client.get(f'/claims/{claim_id}/messages')
 
     assert response.status_code == 200
-    assert b'Return instructions saved.' in response.data
-    assert fetch_value(
-        database_path,
-        'SELECT return_instructions FROM claims WHERE claim_id = ?',
-        (claim_id,),
-    ) == 'Meet at the Student Center front desk.'
+    assert b'Claimable Item' in response.data
+    assert b'Conversation with Test User' in response.data
+    assert b'alice@example.com' not in response.data
+    assert b'bob@example.com' not in response.data
 
 
-def test_non_owner_cannot_add_return_instructions(client, database_path):
-    item_id, claim_id = create_claim_between_users(client, database_path)
+def test_item_owner_can_open_conversation(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+
+    response = client.get(f'/claims/{claim_id}/messages')
+
+    assert response.status_code == 200
+    assert b'Conversation with Test User' in response.data
+
+
+def test_unrelated_user_cannot_view_conversation(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    client.get('/logout')
     register(client, 'charlie@example.com')
     login(client, 'charlie@example.com')
 
-    response = client.post(
-        f'/claims/{claim_id}/return-instructions',
-        data={'return_instructions': 'Unauthorized instructions'},
-        follow_redirects=True,
+    response = client.get(f'/claims/{claim_id}/messages')
+
+    assert response.status_code == 404
+    send_response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Not a participant.'},
     )
-
-    assert b'only update return instructions for your own found item reports' in response.data
-    assert fetch_value(
-        database_path,
-        'SELECT return_instructions FROM claims WHERE claim_id = ?',
-        (claim_id,),
-    ) is None
+    assert send_response.status_code == 404
 
 
-def test_pending_claim_cannot_receive_return_instructions(client, database_path):
-    item_id, claim_id = create_claim_between_users(client, database_path)
-    login(client, 'alice@example.com')
+def test_approved_claimant_can_send_message(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    login(client, 'bob@example.com')
 
     response = client.post(
-        f'/claims/{claim_id}/return-instructions',
-        data={'return_instructions': 'Too early'},
-        follow_redirects=True,
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'I can meet after class.'},
     )
 
-    assert b'only be added to approved claims' in response.data
-    assert fetch_value(
-        database_path,
-        'SELECT return_instructions FROM claims WHERE claim_id = ?',
-        (claim_id,),
-    ) is None
+    assert response.status_code == 302
+    assert fetch_value(database_path, 'SELECT message_text FROM messages') == 'I can meet after class.'
 
 
-def test_approved_claimant_can_view_return_instructions(client, database_path):
-    item_id, claim_id = create_claim_between_users(client, database_path)
-    login(client, 'alice@example.com')
-    client.post(f'/claims/{claim_id}/approve')
+def test_item_owner_can_reply(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+
+    response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'I will be at the library.'},
+    )
+
+    assert response.status_code == 302
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM messages') == 1
+
+
+def test_sender_id_comes_from_logged_in_session(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    finder_id = fetch_value(database_path, 'SELECT user_id FROM users WHERE email = ?', ('alice@example.com',))
+    claimant_id = fetch_value(database_path, 'SELECT user_id FROM users WHERE email = ?', ('bob@example.com',))
+
     client.post(
-        f'/claims/{claim_id}/return-instructions',
-        data={'return_instructions': 'Bring your student ID.'},
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Session sender.', 'sender_id': claimant_id},
+    )
+
+    sender_id = fetch_value(database_path, 'SELECT sender_id FROM messages')
+    assert sender_id == finder_id
+
+
+def test_empty_message_is_rejected(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+
+    response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': '   '},
+        follow_redirects=True,
+    )
+
+    assert b'Please enter a message' in response.data
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM messages') == 0
+
+
+def test_message_over_max_length_is_rejected(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+
+    response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'x' * 1001},
+        follow_redirects=True,
+    )
+
+    assert b'1000 characters or fewer' in response.data
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM messages') == 0
+
+
+def test_unread_message_count(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Unread by claimant.'},
     )
     login(client, 'bob@example.com')
 
-    response = client.get('/my-claims')
+    my_claims_response = client.get('/my-claims')
 
-    assert b'Bring your student ID.' in response.data
+    assert b'1 new message' in my_claims_response.data
+
+
+def test_finder_sees_unread_message_count(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    client.get('/logout')
+    login(client, 'bob@example.com')
+    client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Unread by finder.'},
+    )
+    login(client, 'alice@example.com')
+
+    response = client.get('/claims/received')
+
+    assert b'1 new message' in response.data
+
+
+def test_opening_conversation_marks_received_messages_read(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+    client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Please check this message.'},
+    )
+    login(client, 'bob@example.com')
+
+    response = client.get(f'/claims/{claim_id}/messages')
+
+    assert response.status_code == 200
+    assert fetch_value(database_path, 'SELECT read_at IS NOT NULL FROM messages') == 1
+
+
+def test_returned_item_conversation_is_read_only(client, database_path):
+    item_id, claim_id = approve_test_claim(client, database_path)
+    client.post(f'/items/{item_id}/mark-returned')
+
+    response = client.get(f'/claims/{claim_id}/messages')
+
+    assert response.status_code == 200
+    assert b'This item has been returned. This conversation is now archived.' in response.data
+    assert b'name="message_text"' not in response.data
+    send_response = client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'After return'},
+    )
+    assert send_response.status_code == 403
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM messages') == 0
+
+
+def test_message_history_remains_after_item_returned(client, database_path):
+    item_id, claim_id = approve_test_claim(client, database_path)
+    client.post(
+        f'/claims/{claim_id}/messages/send',
+        data={'message_text': 'Before return.'},
+    )
+    client.post(f'/items/{item_id}/mark-returned')
+
+    response = client.get(f'/claims/{claim_id}/messages')
+
+    assert b'Before return.' in response.data
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM messages') == 1
+
+
+def test_approved_pages_do_not_expose_email_addresses(client, database_path):
+    _, claim_id = approve_test_claim(client, database_path)
+
+    claimant_response = client.get('/my-claims')
+    finder_response = client.get('/claims/received')
+
+    assert b'alice@example.com' not in claimant_response.data
+    assert b'bob@example.com' not in claimant_response.data
+    assert b'alice@example.com' not in finder_response.data
+    assert b'bob@example.com' not in finder_response.data
+
+
+def test_claimant_can_link_own_lost_report(client, database_path):
+    found_item_id = create_found_item_for_user(
+        client, database_path, 'alice@example.com', 'Found Backpack'
+    )
+    register(client, 'bob@example.com')
+    login(client, 'bob@example.com')
+    create_item(client, title='Lost Backpack')
+    lost_item_id = fetch_value(
+        database_path, 'SELECT item_id FROM items WHERE title = ?', ('Lost Backpack',)
+    )
+
+    response = submit_claim(client, found_item_id, lost_item_id=lost_item_id)
+
+    assert response.status_code == 200
+    assert fetch_value(
+        database_path, 'SELECT lost_item_id FROM claims WHERE item_id = ?', (found_item_id,)
+    ) == lost_item_id
+
+
+def test_claimant_cannot_link_another_users_lost_report(client, database_path):
+    found_item_id = create_found_item_for_user(
+        client, database_path, 'alice@example.com', 'Found Backpack'
+    )
+    register(client, 'charlie@example.com')
+    login(client, 'charlie@example.com')
+    create_item(client, title='Charlies Lost Backpack')
+    lost_item_id = fetch_value(
+        database_path,
+        'SELECT item_id FROM items WHERE title = ?',
+        ('Charlies Lost Backpack',),
+    )
+    client.get('/logout')
+    register(client, 'bob@example.com')
+    login(client, 'bob@example.com')
+
+    response = submit_claim(client, found_item_id, lost_item_id=lost_item_id)
+
+    assert b'eligible open lost reports' in response.data
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM claims') == 0
+
+
+def test_claimant_cannot_link_found_report_as_lost_report(client, database_path):
+    found_item_id = create_found_item_for_user(
+        client, database_path, 'alice@example.com', 'Found Backpack'
+    )
+    register(client, 'bob@example.com')
+    login(client, 'bob@example.com')
+
+    response = submit_claim(client, found_item_id, lost_item_id=found_item_id)
+
+    assert b'eligible open lost reports' in response.data
+    assert fetch_value(database_path, 'SELECT COUNT(*) FROM claims') == 0
+
+
+def test_rejected_claim_keeps_lost_report_open(client, database_path):
+    found_item_id = create_found_item_for_user(
+        client, database_path, 'alice@example.com', 'Found Backpack'
+    )
+    register(client, 'bob@example.com')
+    login(client, 'bob@example.com')
+    create_item(client, title='Lost Backpack')
+    lost_item_id = fetch_value(
+        database_path, 'SELECT item_id FROM items WHERE title = ?', ('Lost Backpack',)
+    )
+    submit_claim(client, found_item_id, lost_item_id=lost_item_id)
+    claim_id = fetch_value(
+        database_path, 'SELECT claim_id FROM claims WHERE item_id = ?', (found_item_id,)
+    )
+    client.get('/logout')
+    login(client, 'alice@example.com')
+
+    client.post(f'/claims/{claim_id}/reject')
+
+    assert fetch_value(database_path, 'SELECT status FROM items WHERE item_id = ?', (lost_item_id,)) == 'OPEN'
+
+
+def test_returned_found_item_closes_linked_lost_report(client, database_path):
+    found_item_id = create_found_item_for_user(
+        client, database_path, 'alice@example.com', 'Found Backpack'
+    )
+    register(client, 'bob@example.com')
+    login(client, 'bob@example.com')
+    create_item(client, title='Lost Backpack')
+    lost_item_id = fetch_value(
+        database_path, 'SELECT item_id FROM items WHERE title = ?', ('Lost Backpack',)
+    )
+    submit_claim(client, found_item_id, lost_item_id=lost_item_id)
+    claim_id = fetch_value(
+        database_path, 'SELECT claim_id FROM claims WHERE item_id = ?', (found_item_id,)
+    )
+    client.get('/logout')
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+    client.post(f'/items/{found_item_id}/mark-returned')
+
+    assert fetch_value(database_path, 'SELECT status FROM items WHERE item_id = ?', (found_item_id,)) == 'RETURNED'
+    assert fetch_value(database_path, 'SELECT status FROM items WHERE item_id = ?', (lost_item_id,)) == 'CLOSED'
+    assert fetch_value(database_path, 'SELECT claim_status FROM claims WHERE claim_id = ?', (claim_id,)) == 'APPROVED'
+
+
+def test_return_without_linked_lost_report_still_works(client, database_path):
+    item_id, claim_id = create_claim_between_users(client, database_path)
+    login(client, 'alice@example.com')
+    client.post(f'/claims/{claim_id}/approve')
+
+    response = client.post(f'/items/{item_id}/mark-returned', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert fetch_value(database_path, 'SELECT status FROM items WHERE item_id = ?', (item_id,)) == 'RETURNED'
+
+
+def test_user_can_manually_close_own_lost_report(client, database_path):
+    register(client, 'alice@example.com')
+    login(client, 'alice@example.com')
+    create_item(client, title='Lost Keys')
+    item_id = fetch_value(database_path, 'SELECT item_id FROM items WHERE title = ?', ('Lost Keys',))
+
+    response = client.post(f'/items/{item_id}/close', follow_redirects=True)
+
+    assert response.status_code == 200
+    assert fetch_value(database_path, 'SELECT status FROM items WHERE item_id = ?', (item_id,)) == 'CLOSED'
+
+
+def test_user_cannot_close_another_users_lost_report(client, database_path):
+    register(client, 'alice@example.com')
+    login(client, 'alice@example.com')
+    create_item(client, title='Alice Lost Item')
+    item_id = fetch_value(
+        database_path, 'SELECT item_id FROM items WHERE title = ?', ('Alice Lost Item',)
+    )
+    client.get('/logout')
+    register(client, 'bob@example.com')
+    login(client, 'bob@example.com')
+
+    response = client.post(f'/items/{item_id}/close', follow_redirects=True)
+
+    assert b'only close your own lost reports' in response.data
+    assert fetch_value(database_path, 'SELECT status FROM items WHERE item_id = ?', (item_id,)) == 'OPEN'
+
+
+def test_lost_item_id_migration_is_idempotent(tmp_path, monkeypatch, capsys):
+    from database import migrate_add_lost_item_id as migration
+
+    database_path = tmp_path / 'lost-item-migration-test.db'
+    with sqlite3.connect(database_path) as connection:
+        connection.execute('PRAGMA foreign_keys = ON')
+        connection.execute('CREATE TABLE items (item_id INTEGER PRIMARY KEY)')
+        connection.execute(
+            'CREATE TABLE claims (claim_id INTEGER PRIMARY KEY, item_id INTEGER NOT NULL)'
+        )
+        connection.execute('INSERT INTO items (item_id) VALUES (1)')
+        connection.execute('INSERT INTO claims (claim_id, item_id) VALUES (1, 1)')
+
+    monkeypatch.setattr(migration, 'DATABASE_PATH', database_path)
+    migration.migrate_database()
+    migration.migrate_database()
+
+    with sqlite3.connect(database_path) as connection:
+        column_names = [row[1] for row in connection.execute('PRAGMA table_info(claims)')]
+        claim_count = connection.execute('SELECT COUNT(*) FROM claims').fetchone()[0]
+
+    output = capsys.readouterr().out
+    assert 'Migration applied' in output
+    assert 'already exists' in output
+    assert column_names.count('lost_item_id') == 1
+    assert claim_count == 1
 
 
 def test_return_instructions_migration_is_idempotent(tmp_path, monkeypatch, capsys):
@@ -512,3 +799,55 @@ def test_return_instructions_migration_is_idempotent(tmp_path, monkeypatch, caps
     assert 'Migration applied' in output
     assert 'already exists' in output
     assert column_names.count('return_instructions') == 1
+
+
+def test_messages_migration_creates_table_without_replacing_existing_data(
+    tmp_path, monkeypatch, capsys
+):
+    from database import migrate_add_messages as migration
+
+    database_path = tmp_path / 'messages-migration-test.db'
+    with sqlite3.connect(database_path) as connection:
+        connection.execute('CREATE TABLE users (user_id INTEGER PRIMARY KEY)')
+        connection.execute('CREATE TABLE claims (claim_id INTEGER PRIMARY KEY)')
+        connection.execute('INSERT INTO users (user_id) VALUES (1)')
+        connection.execute('INSERT INTO claims (claim_id) VALUES (1)')
+
+    monkeypatch.setattr(migration, 'DATABASE_PATH', database_path)
+    migration.migrate_database()
+    migration.migrate_database()
+
+    with sqlite3.connect(database_path) as connection:
+        user_count = connection.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        claim_count = connection.execute('SELECT COUNT(*) FROM claims').fetchone()[0]
+        message_columns = [row[1] for row in connection.execute('PRAGMA table_info(messages)')]
+
+    assert user_count == 1
+    assert claim_count == 1
+    assert message_columns == [
+        'message_id', 'claim_id', 'sender_id', 'message_text', 'created_at', 'read_at'
+    ]
+    assert capsys.readouterr().out.count('Messages table is ready') == 2
+
+
+def test_messages_migration_is_idempotent(tmp_path, monkeypatch, capsys):
+    from database import migrate_add_messages as migration
+
+    database_path = tmp_path / 'messages-migration-test.db'
+    with sqlite3.connect(database_path) as connection:
+        connection.execute('CREATE TABLE users (user_id INTEGER PRIMARY KEY)')
+        connection.execute('CREATE TABLE claims (claim_id INTEGER PRIMARY KEY)')
+
+    monkeypatch.setattr(migration, 'DATABASE_PATH', database_path)
+    migration.migrate_database()
+    migration.migrate_database()
+
+    with sqlite3.connect(database_path) as connection:
+        table = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'messages'"
+        ).fetchone()
+        foreign_keys = connection.execute('PRAGMA foreign_key_list(messages)').fetchall()
+
+    assert table == ('messages',)
+    assert len(foreign_keys) == 2
+    assert 'Messages table is ready' in capsys.readouterr().out

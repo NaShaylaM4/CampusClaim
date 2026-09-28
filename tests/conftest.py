@@ -38,11 +38,24 @@ CREATE TABLE claims (
     verification_answer TEXT NOT NULL,
     additional_message TEXT,
     return_instructions TEXT,
+    lost_item_id INTEGER,
     claim_status TEXT NOT NULL DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     reviewed_at TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items (item_id),
-    FOREIGN KEY (claimant_id) REFERENCES users (user_id)
+    FOREIGN KEY (claimant_id) REFERENCES users (user_id),
+    FOREIGN KEY (lost_item_id) REFERENCES items (item_id)
+);
+
+CREATE TABLE messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id INTEGER NOT NULL,
+    sender_id INTEGER NOT NULL,
+    message_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP,
+    FOREIGN KEY (claim_id) REFERENCES claims (claim_id),
+    FOREIGN KEY (sender_id) REFERENCES users (user_id)
 );
 """
 

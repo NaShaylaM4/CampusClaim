@@ -37,6 +37,12 @@
         {% if can_claim %}
             <a class="button button-claim" href="{{ url_for('claim_item', item_id=item.item_id) }}">Claim This Item</a>
         {% endif %}
+        {% if can_close_lost %}
+            <form method="post" action="{{ url_for('close_lost_item', item_id=item.item_id) }}">
+                <p class="close-report-help">Use this when you have recovered the item and no longer need the LOST report.</p>
+                <button class="button button-danger" type="submit">Close Lost Report</button>
+            </form>
+        {% endif %}
         <a class="button button-secondary" href="{{ url_for('browse_items') }}">Back to Browse Items</a>
     </div>
 </section>
