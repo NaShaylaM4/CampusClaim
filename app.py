@@ -1,9 +1,10 @@
 import os
-import sqlite3
+from datetime import date
 from pathlib import Path
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+from database.connection import connect_database, get_database_backend
 
 app = Flask(__name__)
 # Development-only fallback; deployments must provide SECRET_KEY.
@@ -33,10 +34,13 @@ ITEM_STATUSES = ['OPEN', 'CLAIM_PENDING', 'RETURNED', 'CLOSED']
 
 
 def get_db_connection():
-    connection = sqlite3.connect(DATABASE_PATH)
-    connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+    return connect_database(DATABASE_PATH)
+
+
+def database_date_value(value):
+    if get_database_backend() == 'postgresql':
+        return date.fromisoformat(value)
+    return value
 
 
 def login_required(view):
@@ -281,7 +285,8 @@ def create_item():
                 (
                     session['user_id'], item['title'], item['description'],
                     item['category'], item['report_type'], item['location'],
-                    item['date_lost_found'], item['verification_question'] or None,
+                    database_date_value(item['date_lost_found']),
+                    item['verification_question'] or None,
                 ),
             )
             connection.commit()
@@ -305,8 +310,8 @@ def browse_items():
     parameters = []
     if query:
         filters.append(
-            '(title LIKE ? COLLATE NOCASE OR description LIKE ? COLLATE NOCASE '
-            'OR location LIKE ? COLLATE NOCASE)'
+            '(LOWER(title) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?) '
+            'OR LOWER(location) LIKE LOWER(?))'
         )
         keyword = f'%{query}%'
         parameters.extend([keyword, keyword, keyword])
@@ -966,7 +971,8 @@ def edit_item(item_id):
                 (
                     item_data['title'], item_data['description'], item_data['category'],
                     item_data['report_type'], item_data['location'],
-                    item_data['date_lost_found'], item_data['verification_question'] or None,
+                    database_date_value(item_data['date_lost_found']),
+                    item_data['verification_question'] or None,
                     item_data['status'], item_id, session['user_id'],
                 ),
             )

@@ -62,6 +62,7 @@ CREATE TABLE messages (
 
 @pytest.fixture
 def app(monkeypatch, tmp_path):
+    monkeypatch.delenv('DATABASE_URL', raising=False)
     database_path = tmp_path / 'campusclaim-test.db'
     with sqlite3.connect(database_path) as connection:
         connection.execute('PRAGMA foreign_keys = ON')
